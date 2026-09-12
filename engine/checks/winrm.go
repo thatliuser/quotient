@@ -122,7 +122,7 @@ func (c *WinRM) Verify(box string, ip string, points int, timeout int, slapenalt
 	if c.ServiceType == "" {
 		c.ServiceType = "WinRM"
 	}
-	if err := c.Service.Configure(ip, points, timeout, slapenalty, slathreshold); err != nil {
+	if err := c.Configure(ip, points, timeout, slapenalty, slathreshold); err != nil {
 		return err
 	}
 	if c.Display == "" {

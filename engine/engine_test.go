@@ -340,7 +340,7 @@ func (m *mockRunner) GetName() string        { return m.Name }
 func (m *mockRunner) GetAttempts() int       { return 1 }
 func (m *mockRunner) GetCredlists() []string { return nil }
 func (m *mockRunner) Verify(box, ip string, points, timeout, slapenalty, slathreshold int) error {
-	m.Name = box + "-" + m.Service.Display
+	m.Name = box + "-" + m.Display
 	m.Target = ip
 	m.Points = points
 	m.Timeout = timeout
@@ -519,9 +519,10 @@ func TestRvb_HandlesMultipleServices(t *testing.T) {
 
 				// Return points based on service name
 				points := 10
-				if task.ServiceName == "box01-ssh" {
+				switch task.ServiceName {
+				case "box01-ssh":
 					points = 5
-				} else if task.ServiceName == "box01-dns" {
+				case "box01-dns":
 					points = 15
 				}
 

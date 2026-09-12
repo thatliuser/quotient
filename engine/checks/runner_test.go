@@ -109,15 +109,16 @@ func TestWebCheckVerification(t *testing.T) {
 func TestWebCheckRun(t *testing.T) {
 	// Create a test HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/success" {
+		switch r.URL.Path {
+		case "/success":
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("Welcome to the competition!"))
 			require.NoError(t, err)
-		} else if r.URL.Path == "/admin" {
+		case "/admin":
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("Admin Panel - Flag{test123}"))
 			require.NoError(t, err)
-		} else {
+		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
