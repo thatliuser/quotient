@@ -2,6 +2,7 @@ package checks
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
 	"math/rand"
 	"regexp"
@@ -65,7 +66,7 @@ func (c WinRM) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan
 			powershellCmd = winrm.Powershell(r.Command)
 			bufOut := new(bytes.Buffer)
 			bufErr := new(bytes.Buffer)
-			_, err = client.Run(powershellCmd, bufOut, bufErr)
+			_, err = client.RunWithContext(context.TODO(), powershellCmd, bufOut, bufErr)
 			output := bufOut.Bytes()
 			errString := bufErr.String()
 			if err != nil {
@@ -101,7 +102,7 @@ func (c WinRM) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan
 			powershellCmd = winrm.Powershell("hostname")
 			bufOut := new(bytes.Buffer)
 			bufErr := new(bytes.Buffer)
-			_, err = client.Run(powershellCmd, bufOut, bufErr)
+			_, err = client.RunWithContext(context.TODO(), powershellCmd, bufOut, bufErr)
 			if err != nil {
 				checkResult.Error = "connection test failed with creds " + username + ":" + password
 				checkResult.Debug = err.Error()
