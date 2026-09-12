@@ -45,6 +45,7 @@ func CreateSubmission(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "Error retrieving the file"})
 		return
 	}
+	// nolint:errcheck
 	defer file.Close()
 
 	submission := db.SubmissionSchema{
@@ -169,6 +170,7 @@ func DownloadSubmissionFile(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusNotFound, map[string]any{"error": "File not found"})
 		return
 	}
+	// nolint:errcheck
 	defer file.Close()
 
 	w.Header().Set("Content-Disposition", "attachment; filename="+submission.SubmissionFileName)

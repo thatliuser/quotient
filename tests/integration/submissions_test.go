@@ -116,8 +116,8 @@ func TestDownloadAllSubmissions_MultipleTeamsSameFilename(t *testing.T) {
 	// Use temp dir for submission files
 	submissionsDir := t.TempDir()
 	originalWd, _ := os.Getwd()
-	os.Chdir(submissionsDir)
-	defer os.Chdir(originalWd)
+	require.NoError(t, os.Chdir(submissionsDir))
+	defer require.NoError(t, os.Chdir(originalWd))
 
 	// Create inject
 	inject, err := db.CreateInject(db.InjectSchema{
@@ -185,7 +185,7 @@ func TestDownloadAllSubmissions_MultipleTeamsSameFilename(t *testing.T) {
 		t.Logf("ZIP entry: %s", f.Name)
 		rc, _ := f.Open()
 		content, _ := io.ReadAll(rc)
-		rc.Close()
+		require.NoError(t, rc.Close())
 		contents[string(content)] = true
 	}
 

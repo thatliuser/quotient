@@ -280,6 +280,7 @@ func TestEngineRedisPubSub(t *testing.T) {
 	}
 
 	redisContainer := testutil.StartRedis(t)
+	// nolint:errcheck
 	defer redisContainer.Close()
 
 	ctx := context.Background()
@@ -379,6 +380,7 @@ func TestEngineRedisRoundWorkflow(t *testing.T) {
 	}
 
 	redisContainer := testutil.StartRedis(t)
+	// nolint:errcheck
 	defer redisContainer.Close()
 
 	ctx := context.Background()
@@ -416,7 +418,7 @@ func TestEngineRedisRoundWorkflow(t *testing.T) {
 			require.NoError(t, err)
 
 			var task engine.Task
-			json.Unmarshal([]byte(taskVal), &task)
+			require.NoError(t, json.Unmarshal([]byte(taskVal), &task))
 
 			// Create result
 			result := checks.Result{
@@ -448,7 +450,7 @@ func TestEngineRedisRoundWorkflow(t *testing.T) {
 			require.NoError(t, err)
 
 			var result checks.Result
-			json.Unmarshal([]byte(val[1]), &result)
+			require.NoError(t, json.Unmarshal([]byte(val[1]), &result))
 			collectedResults = append(collectedResults, result)
 		}
 
