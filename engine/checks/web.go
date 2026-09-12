@@ -123,9 +123,7 @@ func (c Web) checkUrl(u urlData, checkResult Result) Result {
 
 func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
 	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
-		response <- RunSubchecks(c.Url, c.CheckAll, checkResult, "", func(u urlData, res Result) Result {
-			return c.checkUrl(u, res)
-		})
+		response <- RunSubchecks(c.Url, c.CheckAll, checkResult, "", c.checkUrl)
 	}
 
 	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
