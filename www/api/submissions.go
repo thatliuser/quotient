@@ -92,6 +92,7 @@ func CreateSubmission(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": "Error creating the file"})
 		return
 	}
+	// nolint:errcheck
 	defer out.Close()
 
 	if _, err = io.Copy(out, file); err != nil {
@@ -207,6 +208,7 @@ func DownloadAllSubmissions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/zip")
 
 	zipWriter := zip.NewWriter(w)
+	// nolint:errcheck
 	defer zipWriter.Close()
 
 	// SubmissionFileName is validated by os.Root at upload time; Team.Name is admin-controlled.

@@ -21,7 +21,7 @@ func TestEngineRedisTaskEnqueue(t *testing.T) {
 	}
 
 	redisContainer := testutil.StartRedis(t)
-	defer redisContainer.Close()
+	defer require.NoError(t, redisContainer.Close())
 
 	ctx := context.Background()
 
@@ -143,7 +143,7 @@ func TestEngineRedisResultCollection(t *testing.T) {
 	}
 
 	redisContainer := testutil.StartRedis(t)
-	defer redisContainer.Close()
+	defer require.NoError(t, redisContainer.Close())
 
 	ctx := context.Background()
 
@@ -205,7 +205,7 @@ func TestEngineRedisResultCollection(t *testing.T) {
 			require.NoError(t, err)
 
 			var result checks.Result
-			json.Unmarshal([]byte(val[1]), &result)
+			require.NoError(t, json.Unmarshal([]byte(val[1]), &result))
 			collectedResults = append(collectedResults, result)
 		}
 
@@ -239,10 +239,10 @@ func TestEngineRedisResultCollection(t *testing.T) {
 
 		// Push results from different rounds
 		results := []checks.Result{
-			{TeamID: 1, ServiceName: "web01-web", RoundID: currentRound - 1, Status: true, Points: 5},   // Old round
-			{TeamID: 1, ServiceName: "web01-ssh", RoundID: currentRound, Status: true, Points: 5},       // Current round
-			{TeamID: 2, ServiceName: "web01-web", RoundID: currentRound + 1, Status: true, Points: 5},   // Future round
-			{TeamID: 2, ServiceName: "web01-dns", RoundID: currentRound, Status: true, Points: 5},       // Current round
+			{TeamID: 1, ServiceName: "web01-web", RoundID: currentRound - 1, Status: true, Points: 5}, // Old round
+			{TeamID: 1, ServiceName: "web01-ssh", RoundID: currentRound, Status: true, Points: 5},     // Current round
+			{TeamID: 2, ServiceName: "web01-web", RoundID: currentRound + 1, Status: true, Points: 5}, // Future round
+			{TeamID: 2, ServiceName: "web01-dns", RoundID: currentRound, Status: true, Points: 5},     // Current round
 		}
 
 		for _, result := range results {
@@ -257,7 +257,7 @@ func TestEngineRedisResultCollection(t *testing.T) {
 			require.NoError(t, err)
 
 			var result checks.Result
-			json.Unmarshal([]byte(val[1]), &result)
+			require.NoError(t, json.Unmarshal([]byte(val[1]), &result))
 
 			// Only keep results from current round (simulating engine behavior)
 			if result.RoundID == currentRound {
@@ -287,7 +287,7 @@ func TestEngineRedisPubSub(t *testing.T) {
 	t.Run("publish and receive events", func(t *testing.T) {
 		// Subscribe to events channel
 		pubsub := redisContainer.Client.Subscribe(ctx, "events")
-		defer pubsub.Close()
+		defer require.NoError(t, pubsub.Close())
 
 		// Wait for subscription confirmation
 		_, err := pubsub.Receive(ctx)
@@ -330,13 +330,15 @@ func TestEngineRedisPubSub(t *testing.T) {
 	t.Run("multiple subscribers", func(t *testing.T) {
 		// Create multiple subscribers
 		pubsub1 := redisContainer.Client.Subscribe(ctx, "events")
-		defer pubsub1.Close()
+		defer require.NoError(t, pubsub1.Close())
 		pubsub2 := redisContainer.Client.Subscribe(ctx, "events")
-		defer pubsub2.Close()
+		defer require.NoError(t, pubsub2.Close())
 
 		// Wait for subscriptions
-		pubsub1.Receive(ctx)
-		pubsub2.Receive(ctx)
+		_, err := pubsub1.Receive(ctx)
+		require.NoError(t, err)
+		_, err = pubsub2.Receive(ctx)
+		require.NoError(t, err)
 
 		ch1 := pubsub1.Channel()
 		ch2 := pubsub2.Channel()

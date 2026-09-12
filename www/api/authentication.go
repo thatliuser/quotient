@@ -59,6 +59,7 @@ func init() {
 		if err != nil {
 			log.Fatalln(err)
 		}
+		// nolint:errcheck
 		defer f.Close()
 
 		scanner := bufio.NewScanner(f)
@@ -224,6 +225,7 @@ func auth(username string, password string) (map[string]any, error) {
 		if err != nil {
 			return nil, err
 		}
+		// nolint:errcheck
 		defer conn.Close()
 
 		// bind using the given username and password and searchbase from config
@@ -347,6 +349,7 @@ func findRolesByUsername(username string, authSource string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		// nolint:errcheck
 		defer conn.Close()
 
 		// bind using the given username and password and searchbase from config

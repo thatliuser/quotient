@@ -69,6 +69,7 @@ func SafeMkdirAll(baseDir, relativePath string, perm os.FileMode) error {
 	if err != nil {
 		return err
 	}
+	// nolint:errcheck
 	defer root.Close()
 	parts := strings.Split(filepath.ToSlash(filepath.Clean(relativePath)), "/")
 	for i := range parts {

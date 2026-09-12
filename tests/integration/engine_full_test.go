@@ -46,7 +46,7 @@ func TestFullEngineWorkflow(t *testing.T) {
 
 	// Start Redis
 	redisContainer := testutil.StartRedis(t)
-	defer redisContainer.Close()
+	defer require.NoError(t, redisContainer.Close())
 
 	// Start PostgreSQL
 	pgContainer := testutil.StartPostgres(t)
@@ -60,7 +60,7 @@ func TestFullEngineWorkflow(t *testing.T) {
 	t.Run("complete round workflow", func(t *testing.T) {
 		// Clear Redis and reset DB scores (clears rounds, checks, SLAs)
 		redisContainer.Client.FlushDB(ctx)
-		db.ResetScores()
+		require.NoError(t, db.ResetScores())
 
 		roundID := uint(1)
 		team := createTestTeam(t, "Test Team", "01")
@@ -173,13 +173,13 @@ func TestFullEngineWorkflow(t *testing.T) {
 		// Create result with malicious content
 		result := checks.Result{
 			TeamID:      team.ID,
-			ServiceName: "web\x00-malicious",  // Null byte
+			ServiceName: "web\x00-malicious", // Null byte
 			ServiceType: "Web",
 			RoundID:     roundID,
 			Status:      false,
 			Points:      0,
-			Error:       "SQL'; DROP TABLE users\x00--",  // SQL injection attempt with null byte
-			Debug:       "<script>alert('xss')</script>\x00",  // XSS attempt with null byte
+			Error:       "SQL'; DROP TABLE users\x00--",      // SQL injection attempt with null byte
+			Debug:       "<script>alert('xss')</script>\x00", // XSS attempt with null byte
 		}
 
 		// Process with sanitization
@@ -236,7 +236,7 @@ func TestFullEngineWorkflow(t *testing.T) {
 				ServiceName: serviceName,
 				ServiceType: "Web",
 				RoundID:     roundID + uint(i),
-				Status:      false,  // Failed
+				Status:      false, // Failed
 				Points:      0,
 				Error:       "Service unavailable",
 			}
@@ -311,7 +311,7 @@ func TestFullEngineWorkflow(t *testing.T) {
 			require.NoError(t, err)
 
 			var result checks.Result
-			json.Unmarshal([]byte(data[1]), &result)
+			require.NoError(t, json.Unmarshal([]byte(data[1]), &result))
 			collected = append(collected, result)
 		}
 

@@ -31,8 +31,8 @@ func TestDownloadAllSubmissions(t *testing.T) {
 	// Use temp dir for submission files
 	submissionsDir := t.TempDir()
 	originalWd, _ := os.Getwd()
-	os.Chdir(submissionsDir)
-	defer os.Chdir(originalWd)
+	require.NoError(t, os.Chdir(submissionsDir))
+	defer require.NoError(t, os.Chdir(originalWd))
 
 	// Setup: team, inject, submissions
 	team, err := db.CreateTeam(db.TeamSchema{
@@ -99,7 +99,7 @@ func TestDownloadAllSubmissions(t *testing.T) {
 	for _, f := range zipReader.File {
 		rc, _ := f.Open()
 		content, _ := io.ReadAll(rc)
-		rc.Close()
+		require.NoError(t, rc.Close())
 		assert.Contains(t, string(content), "content")
 	}
 }
