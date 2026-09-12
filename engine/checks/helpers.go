@@ -95,9 +95,7 @@ func RunSubchecks[T any](items []T, checkAll bool, baseResult Result, debugSuffi
 
 	if len(items) == 0 {
 		baseResult.Status = true
-		if debugSuffix != "" {
-			baseResult.Debug = debugSuffix
-		}
+		baseResult.Debug = fullDebugMessage(baseResult.Debug, debugSuffix)
 		return baseResult
 	}
 
