@@ -82,7 +82,8 @@ func TestProcessCollectedResults_SavesRound(t *testing.T) {
 	}
 
 	redis := testutil.StartRedis(t)
-	defer redis.Close()
+	// nolint:errcheck
+	defer require.NoError(t, redis.Close())
 
 	pg := testutil.StartPostgres(t)
 	defer pg.Close()
@@ -90,7 +91,7 @@ func TestProcessCollectedResults_SavesRound(t *testing.T) {
 
 	// Clean slate
 	redis.Client.FlushDB(context.Background())
-	db.ResetScores()
+	require.NoError(t, db.ResetScores())
 
 	team := createTestTeam(t, "Team", "01")
 
@@ -136,14 +137,14 @@ func TestProcessCollectedResults_TracksUptime(t *testing.T) {
 	}
 
 	redis := testutil.StartRedis(t)
-	defer redis.Close()
+	defer require.NoError(t, redis.Close())
 
 	pg := testutil.StartPostgres(t)
 	defer pg.Close()
 	db.Connect(pg.ConnectionString())
 
 	redis.Client.FlushDB(context.Background())
-	db.ResetScores()
+	require.NoError(t, db.ResetScores())
 
 	team := createTestTeam(t, "Team", "01")
 
@@ -180,14 +181,14 @@ func TestProcessCollectedResults_TriggersSLA(t *testing.T) {
 	}
 
 	redis := testutil.StartRedis(t)
-	defer redis.Close()
+	defer require.NoError(t, redis.Close())
 
 	pg := testutil.StartPostgres(t)
 	defer pg.Close()
 	db.Connect(pg.ConnectionString())
 
 	redis.Client.FlushDB(context.Background())
-	db.ResetScores()
+	require.NoError(t, db.ResetScores())
 
 	team := createTestTeam(t, "Team SLA", "01")
 
@@ -219,14 +220,14 @@ func TestProcessCollectedResults_SLAResetsOnPass(t *testing.T) {
 	}
 
 	redis := testutil.StartRedis(t)
-	defer redis.Close()
+	defer require.NoError(t, redis.Close())
 
 	pg := testutil.StartPostgres(t)
 	defer pg.Close()
 	db.Connect(pg.ConnectionString())
 
 	redis.Client.FlushDB(context.Background())
-	db.ResetScores()
+	require.NoError(t, db.ResetScores())
 
 	team := createTestTeam(t, "Team SLA Reset", "01")
 
@@ -278,14 +279,14 @@ func TestProcessCollectedResults_MultipleTeamsIndependent(t *testing.T) {
 	}
 
 	redis := testutil.StartRedis(t)
-	defer redis.Close()
+	defer require.NoError(t, redis.Close())
 
 	pg := testutil.StartPostgres(t)
 	defer pg.Close()
 	db.Connect(pg.ConnectionString())
 
 	redis.Client.FlushDB(context.Background())
-	db.ResetScores()
+	require.NoError(t, db.ResetScores())
 
 	team1 := createTestTeam(t, "Team Multi 1", "01")
 	team2 := createTestTeam(t, "Team Multi 2", "02")
@@ -333,11 +334,11 @@ func (m *mockRunner) Run(teamID uint, identifier string, roundID uint, resultsCh
 	}
 }
 
-func (m *mockRunner) Runnable() bool                  { return true }
-func (m *mockRunner) GetType() string                 { return m.ServiceType }
-func (m *mockRunner) GetName() string                 { return m.Name }
-func (m *mockRunner) GetAttempts() int                { return 1 }
-func (m *mockRunner) GetCredlists() []string          { return nil }
+func (m *mockRunner) Runnable() bool         { return true }
+func (m *mockRunner) GetType() string        { return m.ServiceType }
+func (m *mockRunner) GetName() string        { return m.Name }
+func (m *mockRunner) GetAttempts() int       { return 1 }
+func (m *mockRunner) GetCredlists() []string { return nil }
 func (m *mockRunner) Verify(box, ip string, points, timeout, slapenalty, slathreshold int) error {
 	m.Name = box + "-" + m.Service.Display
 	m.Target = ip
@@ -356,7 +357,7 @@ func TestRvb_EnqueuesTasksAndCollectsResults(t *testing.T) {
 	t.Setenv("REDIS_ADDR", "localhost:6379")
 
 	redis := testutil.StartRedis(t)
-	defer redis.Close()
+	defer require.NoError(t, redis.Close())
 
 	pg := testutil.StartPostgres(t)
 	defer pg.Close()
@@ -364,7 +365,7 @@ func TestRvb_EnqueuesTasksAndCollectsResults(t *testing.T) {
 
 	ctx := context.Background()
 	redis.Client.FlushDB(ctx)
-	db.ResetScores()
+	require.NoError(t, db.ResetScores())
 
 	team1 := createTestTeam(t, "Team Rvb 1", "01")
 	team2 := createTestTeam(t, "Team Rvb 2", "02")
@@ -467,7 +468,7 @@ func TestRvb_HandlesMultipleServices(t *testing.T) {
 	t.Setenv("REDIS_ADDR", "localhost:6379")
 
 	redis := testutil.StartRedis(t)
-	defer redis.Close()
+	defer require.NoError(t, redis.Close())
 
 	pg := testutil.StartPostgres(t)
 	defer pg.Close()
@@ -475,7 +476,7 @@ func TestRvb_HandlesMultipleServices(t *testing.T) {
 
 	ctx := context.Background()
 	redis.Client.FlushDB(ctx)
-	db.ResetScores()
+	require.NoError(t, db.ResetScores())
 
 	team := createTestTeam(t, "Team Multi Svc", "01")
 
@@ -514,7 +515,7 @@ func TestRvb_HandlesMultipleServices(t *testing.T) {
 				}
 
 				var task Task
-				json.Unmarshal([]byte(val[1]), &task)
+				require.NoError(t, json.Unmarshal([]byte(val[1]), &task))
 
 				// Return points based on service name
 				points := 10

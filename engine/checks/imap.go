@@ -69,6 +69,7 @@ func (c Imap) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 				response <- checkResult
 				return
 			}
+			// nolint:errcheck
 			defer cl.Logout()
 
 			// List mailboxes

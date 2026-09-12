@@ -28,6 +28,7 @@ func (c Pop3) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 			response <- checkResult
 			return
 		}
+		// nolint:errcheck
 		defer conn.Quit()
 
 		// Authenticate.
