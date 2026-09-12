@@ -56,12 +56,14 @@ func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 				res.Error = "invalid request URL"
 				res.Debug = "URL failed validation: " + requestURL
+				res.Status = false
 				return res
 			}
 			req, err := http.NewRequest("GET", parsedURL.String(), nil)
 			if err != nil {
 				res.Error = "error creating web request"
 				res.Debug = err.Error()
+				res.Status = false
 				return res
 			}
 
@@ -78,6 +80,7 @@ func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 				} else {
 					res.Debug = err.Error() + " for url " + u.Path
 				}
+				res.Status = false
 				return res
 			}
 
@@ -90,6 +93,7 @@ func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			if u.Status != 0 && resp.StatusCode != u.Status {
 				res.Error = "status returned by webserver was incorrect"
 				res.Debug = "status was " + strconv.Itoa(resp.StatusCode) + " wanted " + strconv.Itoa(u.Status) + " for url " + u.Path
+				res.Status = false
 				return res
 			}
 
@@ -97,6 +101,7 @@ func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			if err != nil {
 				res.Error = "error reading page content"
 				res.Debug = "error was '" + err.Error() + "' for url " + u.Path
+				res.Status = false
 				return res
 			}
 
@@ -105,12 +110,14 @@ func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 				if err != nil {
 					res.Error = "error compiling regex to match for web page"
 					res.Debug = err.Error()
+					res.Status = false
 					return res
 				}
 				reFind := re.Find(body)
 				if reFind == nil {
 					res.Error = "didn't find regex on page"
 					res.Debug = "couldn't find regex \"" + u.Regex + "\" for " + u.Path
+					res.Status = false
 					return res
 				} else {
 					res.Status = true
