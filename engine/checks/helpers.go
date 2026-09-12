@@ -77,6 +77,22 @@ func GetFile(fileName string) (string, error) {
 // or all subchecks (stopping at the first failure).
 // An optional debugSuffix (like credentials used) will be appended to the final debug string.
 func RunSubchecks[T any](items []T, checkAll bool, baseResult Result, debugSuffix string, checkFn func(item T, result Result) Result) Result {
+	// helper to generate debug message
+	// if msg is "", full message omits msg
+	// if msg has contents but suffix is "", full message omits suffix
+	// if msg, suffix both have contents, full message is of the format "message (suffix)"
+	fullDebugMessage := func(msg, suffix string) string {
+		if suffix != "" {
+			if msg == "" {
+				return suffix
+			} else {
+				return fmt.Sprintf("%s (%s)", msg, suffix)
+			}
+		} else {
+			return msg
+		}
+	}
+
 	if len(items) == 0 {
 		baseResult.Status = true
 		if debugSuffix != "" {
@@ -90,13 +106,7 @@ func RunSubchecks[T any](items []T, checkAll bool, baseResult Result, debugSuffi
 		for _, item := range items {
 			result := checkFn(item, baseResult)
 			if !result.Status {
-				if debugSuffix != "" {
-					if result.Debug == "" {
-						result.Debug = debugSuffix
-					} else {
-						result.Debug += " (" + debugSuffix + ")"
-					}
-				}
+				result.Debug = fullDebugMessage(result.Debug, debugSuffix)
 				return result
 			}
 			if result.Debug != "" {
@@ -104,27 +114,19 @@ func RunSubchecks[T any](items []T, checkAll bool, baseResult Result, debugSuffi
 			}
 		}
 		baseResult.Status = true
-		
+
 		if len(debugParts) > 0 {
 			baseResult.Debug = fmt.Sprintf("all %d checks passed: %s", len(items), strings.Join(debugParts, "; "))
 		} else {
 			baseResult.Debug = fmt.Sprintf("all %d checks passed", len(items))
 		}
 
-		if debugSuffix != "" {
-			baseResult.Debug += " (" + debugSuffix + ")"
-		}
+		baseResult.Debug = fullDebugMessage(baseResult.Debug, debugSuffix)
 		return baseResult
 	} else {
 		item := items[rand.Intn(len(items))] // #nosec G404 -- non-crypto random selection
 		res := checkFn(item, baseResult)
-		if debugSuffix != "" {
-			if res.Debug == "" {
-				res.Debug = debugSuffix
-			} else {
-				res.Debug += " (" + debugSuffix + ")"
-			}
-		}
+		res.Debug = fullDebugMessage(res.Debug, debugSuffix)
 		return res
 	}
 }
