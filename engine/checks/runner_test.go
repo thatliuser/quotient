@@ -280,7 +280,9 @@ func TestDnsCheckRun(t *testing.T) {
 		t.Skip("Cannot create UDP listener for DNS test")
 		return
 	}
-	defer require.NoError(t, pc.Close())
+	// we don't care about this erroring because it's a udp connection
+	// nolint:errcheck
+	defer pc.Close()
 
 	serverAddr := pc.LocalAddr().String()
 	parts := strings.Split(serverAddr, ":")
