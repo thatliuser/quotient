@@ -194,27 +194,32 @@ func (c Ssh) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		// If any commands specified, run a random one (or all if CheckAll)
 		if len(c.Command) > 0 {
 			checkResult = RunSubchecks(c.Command, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(r commandData, res Result) Result {
+				// All commands share one shell, so only look at output produced after this
+				// command was sent; otherwise earlier commands' output could satisfy it.
+				stdoutStart, stderrStart := stdoutBytes.Len(), stderrBytes.Len()
 				_, _ = fmt.Fprintln(stdin, r.Command)
 				time.Sleep(time.Duration(int(time.Duration(c.Timeout)*time.Second) / 8)) // command wait time
+				stdout := stdoutBytes.String()[stdoutStart:]
+				stderr := stderrBytes.String()[stderrStart:]
 				if r.Contains {
-					if !strings.Contains(stdoutBytes.String(), r.Output) {
+					if !strings.Contains(stdout, r.Output) {
 						res.Error = "command output didn't contain string"
-						res.Debug = "command output of '" + r.Command + "' didn't contain string '" + r.Output + "': " + stdoutBytes.String() + ",  " + stderrBytes.String()
+						res.Debug = "command output of '" + r.Command + "' didn't contain string '" + r.Output + "': " + stdout + ",  " + stderr
 						res.Status = false
 						return res
 					}
 				} else if r.UseRegex {
 					re := regexp.MustCompile(r.Output)
-					if !re.Match(stdoutBytes.Bytes()) {
+					if !re.MatchString(stdout) {
 						res.Error = "command output didn't match regex"
 						res.Debug = "command output'" + r.Command + "' didn't match regex '" + r.Output
 						res.Status = false
 						return res
 					}
 				} else {
-					if stderrBytes.Len() != 0 {
+					if stderr != "" {
 						res.Error = "command returned an error"
-						res.Debug = "command stderr was not empty: " + stderrBytes.String()
+						res.Debug = "command stderr was not empty: " + stderr
 						res.Status = false
 						return res
 					}
