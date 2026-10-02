@@ -155,8 +155,7 @@ func (c Ssh) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 				response <- checkResult
 				return
 			}
-			// nolint:errcheck
-			shell.session.Close()
+			_ = shell.session.Close()
 			checkResult.Status = true
 			checkResult.Debug = "creds used were " + username + ":" + password
 		} else {
@@ -237,8 +236,7 @@ func openShell(conn *ssh.Client) (*sshShell, string, error) {
 
 	// Request pseudo terminal
 	if err := session.RequestPty("xterm", 40, 80, modes); err != nil {
-		// nolint:errcheck
-		session.Close()
+		_ = session.Close()
 		return nil, "couldn't allocate pts", err
 	}
 
@@ -246,8 +244,7 @@ func openShell(conn *ssh.Client) (*sshShell, string, error) {
 	shell := &sshShell{session: session}
 	shell.stdin, err = session.StdinPipe()
 	if err != nil {
-		// nolint:errcheck
-		session.Close()
+		_ = session.Close()
 		return nil, "couldn't get stdin pipe", err
 	}
 	session.Stdout = &shell.stdout
@@ -255,8 +252,7 @@ func openShell(conn *ssh.Client) (*sshShell, string, error) {
 
 	// Start remote shell
 	if err := session.Shell(); err != nil {
-		// nolint:errcheck
-		session.Close()
+		_ = session.Close()
 		return nil, "failed to start shell", err
 	}
 

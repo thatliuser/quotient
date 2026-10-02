@@ -130,7 +130,6 @@ func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			return res
 		})
 		response <- checkResult
-		return
 	}
 
 	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
