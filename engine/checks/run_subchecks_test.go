@@ -11,7 +11,7 @@ func TestRunSubchecks_CheckAllFailsEarlyIncludesSuffix(t *testing.T) {
 	base := Result{}
 	debugSuffix := "creds used were user:pass"
 
-	result := RunSubchecks(items, true, base, debugSuffix, func(item commandData, res Result) Result {
+	result := RunSubchecks(t.Context(), items, true, base, debugSuffix, func(item commandData, res Result) Result {
 		if item.Command == "fail-2" {
 			res.Error = "command failed"
 			res.Debug = "failed on " + item.Command
@@ -42,7 +42,7 @@ func TestRunSubchecks_CheckAllSuccessAggregatesAndSuffix(t *testing.T) {
 	base := Result{}
 	debugSuffix := "creds used were user:pass"
 
-	result := RunSubchecks(items, true, base, debugSuffix, func(item commandData, res Result) Result {
+	result := RunSubchecks(t.Context(), items, true, base, debugSuffix, func(item commandData, res Result) Result {
 		res.Status = true
 		res.Debug = "ran " + item.Command
 		return res
@@ -64,7 +64,7 @@ func TestRunSubchecks_SingleCheckFailureIncludesSuffix(t *testing.T) {
 	base := Result{}
 	debugSuffix := "creds used were user:pass"
 
-	result := RunSubchecks(items, false, base, debugSuffix, func(item commandData, res Result) Result {
+	result := RunSubchecks(t.Context(), items, false, base, debugSuffix, func(item commandData, res Result) Result {
 		res.Error = "command failed"
 		res.Debug = "failed on " + item.Command
 		res.Status = false

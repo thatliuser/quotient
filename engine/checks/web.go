@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -30,9 +31,9 @@ type urlData struct {
 	CompareFile string `toml:",omitempty"` // TODO implement
 }
 
-func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
-		response <- RunSubchecks(c.Url, c.CheckAll, checkResult, "", func(u urlData, res Result) Result {
+func (c Web) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+		response <- RunSubchecks(ctx, c.Url, c.CheckAll, checkResult, "", func(u urlData, res Result) Result {
 			// random user agent
 			ua := uarand.GetRandom()
 
@@ -59,7 +60,7 @@ func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 				res.Status = false
 				return res
 			}
-			req, err := http.NewRequest("GET", parsedURL.String(), nil)
+			req, err := http.NewRequestWithContext(ctx, "GET", parsedURL.String(), nil)
 			if err != nil {
 				res.Error = "error creating web request"
 				res.Debug = err.Error()
@@ -132,7 +133,7 @@ func (c Web) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Web) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

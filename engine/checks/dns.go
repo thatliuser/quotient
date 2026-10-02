@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -21,9 +22,9 @@ type DnsRecord struct {
 	Answer []string
 }
 
-func (c Dns) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
-		response <- RunSubchecks(c.Record, c.CheckAll, checkResult, "", func(record DnsRecord, res Result) Result {
+func (c Dns) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+		response <- RunSubchecks(ctx, c.Record, c.CheckAll, checkResult, "", func(record DnsRecord, res Result) Result {
 			// Pick a record
 			fqdn := dns.Fqdn(strings.ReplaceAll(dns.Fqdn(record.Domain), "_", teamIdentifier))
 
@@ -46,10 +47,10 @@ func (c Dns) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			// Send the query
 			client := dns.Client{Timeout: time.Duration(c.Timeout-1) * time.Second, DialTimeout: time.Duration(c.Timeout-1) * time.Second}
 			// _, _ = dns.ExchangeContext(deadctx, &msg, fmt.Sprintf("%s:%d", c.Target, c.Port)) // double tap for propagation
-			in, rtt, err := client.Exchange(&msg, fmt.Sprintf("%s:%d", c.Target, c.Port))
+			in, rtt, err := client.ExchangeContext(ctx, &msg, fmt.Sprintf("%s:%d", c.Target, c.Port))
 			if err != nil {
 				if errors.Is(err, os.ErrDeadlineExceeded) {
-					in, rtt, err = client.Exchange(&msg, fmt.Sprintf("%s:%d", c.Target, c.Port))
+					in, rtt, err = client.ExchangeContext(ctx, &msg, fmt.Sprintf("%s:%d", c.Target, c.Port))
 					if err != nil {
 						res.Error = "error sending query"
 						res.Debug = "record " + record.Domain + ":" + fmt.Sprint(record.Answer) + fmt.Sprintf("(took %s)", rtt) + ": " + err.Error()
@@ -93,7 +94,7 @@ func (c Dns) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		})
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Dns) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

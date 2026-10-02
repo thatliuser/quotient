@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -23,7 +22,7 @@ func TestFullEngineWorkflow(t *testing.T) {
 
 	redisContainer, pg := testutil.StartContainers(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("complete round workflow", func(t *testing.T) {
 		// Clear Redis and reset DB scores (clears rounds, checks, SLAs)

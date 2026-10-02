@@ -1,11 +1,13 @@
 package checks
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"os"
 	"strings"
 
@@ -70,7 +72,7 @@ func GetFile(fileName string) (string, error) {
 // RunSubchecks abstracts the pattern of checking either a single random subcheck
 // or all subchecks (stopping at the first failure).
 // An optional debugSuffix (like credentials used) will be appended to the final debug string.
-func RunSubchecks[T any](items []T, checkAll bool, baseResult Result, debugSuffix string, checkFn func(item T, result Result) Result) Result {
+func RunSubchecks[T any](ctx context.Context, items []T, checkAll bool, baseResult Result, debugSuffix string, checkFn func(item T, result Result) Result) Result {
 	// helper to generate debug message
 	// if msg is "", full message omits msg
 	// if msg has contents but suffix is "", full message omits suffix
@@ -95,7 +97,14 @@ func RunSubchecks[T any](items []T, checkAll bool, baseResult Result, debugSuffi
 
 	if checkAll {
 		debugParts := []string{}
-		for _, item := range items {
+		for i, item := range items {
+			if ctx.Err() != nil {
+				result := baseResult
+				result.Status = false
+				result.Error = "check timeout exceeded"
+				result.Debug = fullDebugMessage(fmt.Sprintf("ran out of time after %d of %d checks", i, len(items)), debugSuffix)
+				return result
+			}
 			result := checkFn(item, baseResult)
 			if !result.Status {
 				result.Debug = fullDebugMessage(result.Debug, debugSuffix)
@@ -121,4 +130,27 @@ func RunSubchecks[T any](items []T, checkAll bool, baseResult Result, debugSuffi
 		res.Debug = fullDebugMessage(res.Debug, debugSuffix)
 		return res
 	}
+}
+
+// dialContext dials addr and closes the connection once ctx is done, which
+// unblocks any I/O still in flight on it. Use it for protocol libraries that
+// don't take a context themselves.
+func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, network, addr)
+	if err != nil {
+		return nil, err
+	}
+	context.AfterFunc(ctx, func() { _ = conn.Close() })
+	return conn, nil
+}
+
+// ctxDialer is a Dial(network, addr) dialer for libraries that take one,
+// backed by dialContext.
+type ctxDialer struct {
+	ctx context.Context
+}
+
+func (d ctxDialer) Dial(network, addr string) (net.Conn, error) {
+	return dialContext(d.ctx, network, addr)
 }

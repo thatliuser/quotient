@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 
 	"github.com/mitchellh/go-vnc"
 )
@@ -13,8 +12,8 @@ type Vnc struct {
 	Service
 }
 
-func (c Vnc) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+func (c Vnc) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 
 		// Configure the vnc client
 		username, password, err := c.getCreds(teamID)
@@ -32,8 +31,7 @@ func (c Vnc) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		}
 
 		// Dial the vnc server
-		dialer := net.Dialer{}
-		conn, err := dialer.DialContext(context.TODO(), "tcp", fmt.Sprintf("%s:%d", c.Target, c.Port))
+		conn, err := dialContext(ctx, "tcp", fmt.Sprintf("%s:%d", c.Target, c.Port))
 		if err != nil {
 			checkResult.Error = "connection to vnc server failed"
 			checkResult.Debug = err.Error() + " for creds " + username + ":" + password
@@ -64,7 +62,7 @@ func (c Vnc) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Vnc) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

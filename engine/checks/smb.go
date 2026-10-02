@@ -1,9 +1,9 @@
 package checks
 
 import (
+	"context"
 	"io"
 	"log/slog"
-	"net"
 	"regexp"
 	"strconv"
 
@@ -23,8 +23,8 @@ type smbFile struct {
 	Regex string
 }
 
-func (c Smb) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+func (c Smb) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		var username, password string
 		if len(c.CredLists) == 0 {
 			username, password = "guest", ""
@@ -39,7 +39,7 @@ func (c Smb) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			}
 		}
 
-		conn, err := net.Dial("tcp", c.Target+":"+strconv.Itoa(c.Port))
+		conn, err := dialContext(ctx, "tcp", c.Target+":"+strconv.Itoa(c.Port))
 		if err != nil {
 			checkResult.Error = "smb connection failed"
 			checkResult.Debug = err.Error()
@@ -59,7 +59,7 @@ func (c Smb) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			},
 		}
 
-		s, err := d.Dial(conn)
+		s, err := d.DialContext(ctx, conn)
 		if err != nil {
 			checkResult.Error = "smb login failed"
 			if len(c.CredLists) == 0 {
@@ -84,7 +84,7 @@ func (c Smb) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			// nolint:errcheck
 			defer fs.Umount()
 
-			checkResult = RunSubchecks(c.File, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(file smbFile, res Result) Result {
+			checkResult = RunSubchecks(ctx, c.File, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(file smbFile, res Result) Result {
 				f, err := fs.Open(file.Name)
 				if err != nil {
 					res.Error = "failed to open file"
@@ -157,7 +157,7 @@ func (c Smb) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		}
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Smb) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

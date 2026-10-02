@@ -161,14 +161,14 @@ func TestTeamNamedWithoutTeam(t *testing.T) {
 }
 
 func TestCallerTeamIDReportsAbsence(t *testing.T) {
-	_, hasTeam := CallerTeamID(context.Background())
+	_, hasTeam := CallerTeamID(t.Context())
 	assert.False(t, hasTeam, "a request with no identity must report no team")
 
-	ctx := WithIdentity(context.Background(), Identity{Username: "injectmgr", Roles: []string{"inject"}})
+	ctx := WithIdentity(t.Context(), Identity{Username: "injectmgr", Roles: []string{"inject"}})
 	_, hasTeam = CallerTeamID(ctx)
 	assert.False(t, hasTeam, "an identity with no team must report no team")
 
-	ctx = WithIdentity(context.Background(), Identity{Username: "hola", Roles: []string{"team"}, TeamID: 5, HasTeam: true})
+	ctx = WithIdentity(t.Context(), Identity{Username: "hola", Roles: []string{"team"}, TeamID: 5, HasTeam: true})
 	id, hasTeam := CallerTeamID(ctx)
 	assert.True(t, hasTeam)
 	assert.Equal(t, uint(5), id)
@@ -176,11 +176,11 @@ func TestCallerTeamIDReportsAbsence(t *testing.T) {
 
 func TestIdentityRoundTripsThroughContext(t *testing.T) {
 	want := Identity{Username: "hola", Roles: []string{"team"}, TeamID: 5, HasTeam: true}
-	got, ok := IdentityFrom(WithIdentity(context.Background(), want))
+	got, ok := IdentityFrom(WithIdentity(t.Context(), want))
 	require.True(t, ok)
 	assert.Equal(t, want, got)
 
-	_, ok = IdentityFrom(context.Background())
+	_, ok = IdentityFrom(t.Context())
 	assert.False(t, ok)
 }
 

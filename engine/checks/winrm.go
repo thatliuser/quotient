@@ -25,8 +25,8 @@ type winCommandData struct {
 	Output   string
 }
 
-func (c WinRM) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+func (c WinRM) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		username, password, err := c.getCreds(teamID)
 		if err != nil {
 			checkResult.Error = "error getting creds"
@@ -61,11 +61,11 @@ func (c WinRM) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan
 		// If any commands specified, run them; otherwise run a simple connectivity test
 		var powershellCmd string
 		if len(c.Command) > 0 {
-			checkResult = RunSubchecks(c.Command, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(r winCommandData, res Result) Result {
+			checkResult = RunSubchecks(ctx, c.Command, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(r winCommandData, res Result) Result {
 				powershellCmd = winrm.Powershell(r.Command)
 				bufOut := new(bytes.Buffer)
 				bufErr := new(bytes.Buffer)
-				_, err = client.RunWithContext(context.TODO(), powershellCmd, bufOut, bufErr)
+				_, err = client.RunWithContext(ctx, powershellCmd, bufOut, bufErr)
 				output := bufOut.Bytes()
 				errString := bufErr.String()
 				if err != nil {
@@ -108,7 +108,7 @@ func (c WinRM) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan
 			powershellCmd = winrm.Powershell("hostname")
 			bufOut := new(bytes.Buffer)
 			bufErr := new(bytes.Buffer)
-			_, err = client.RunWithContext(context.TODO(), powershellCmd, bufOut, bufErr)
+			_, err = client.RunWithContext(ctx, powershellCmd, bufOut, bufErr)
 			if err != nil {
 				checkResult.Error = "connection test failed with creds " + username + ":" + password
 				checkResult.Debug = err.Error()
@@ -123,7 +123,7 @@ func (c WinRM) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *WinRM) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"math/rand"
@@ -14,9 +15,12 @@ type TaskCredential struct {
 	Password string
 }
 
+// errCheckReturned is the cancel cause once a check returns on its own
+var errCheckReturned = errors.New("check returned")
+
 // checks for each service
 type Runner interface {
-	Run(teamID uint, identifier string, roundID uint, resultsChan chan Result)
+	Run(ctx context.Context, teamID uint, identifier string, roundID uint, resultsChan chan Result)
 	Runnable() bool
 	Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error
 	GetType() string
@@ -136,7 +140,7 @@ func (service *Service) Runnable() bool {
 	return true
 }
 
-func (service *Service) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result, definition func(teamID uint, teamIdentifier string, checkResult Result, response chan Result)) {
+func (service *Service) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result, definition func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result)) {
 	service.Target = strings.ReplaceAll(service.Target, "_", teamIdentifier)
 
 	checkResult := Result{
@@ -153,17 +157,34 @@ func (service *Service) Run(teamID uint, teamIdentifier string, roundID uint, re
 	// Buffered so the check goroutine can still send (and exit) after a timeout
 	response := make(chan Result, 1)
 
-	go definition(teamID, teamIdentifier, checkResult, response)
+	// Checks use ctx to abort in-flight work. It's done once the check's timeout
+	// passes, the caller cancels, or the check returns (not just responds), so
+	// cleanup the check defers runs before ctx-triggered teardown.
+	ctx, cancelTimeout := context.WithTimeout(ctx, time.Duration(service.Timeout)*time.Second)
+	ctx, finish := context.WithCancelCause(ctx)
+	go func() {
+		defer cancelTimeout()
+		defer finish(errCheckReturned)
+		definition(ctx, teamID, teamIdentifier, checkResult, response)
+	}()
 
+	var resp Result
 	select {
-	// ok response
-	case resp := <-response:
-		resultsChan <- resp
-		return
-	// timeout
-	case <-time.After(time.Duration(service.Timeout) * time.Second):
-		checkResult.Error = "check timeout exceeded"
-		resultsChan <- checkResult
-		return
+	case resp = <-response:
+	case <-ctx.Done():
+		select {
+		case resp = <-response:
+		default:
+			resp = checkResult
+			resp.Error = "check returned without a result"
+		}
 	}
+
+	// Only a response from a check that wasn't cut short counts. If the check
+	// returned on its own, its response was sent before ctx was done.
+	if ctx.Err() != nil && context.Cause(ctx) != errCheckReturned {
+		resp = checkResult
+		resp.Error = "check timeout exceeded"
+	}
+	resultsChan <- resp
 }

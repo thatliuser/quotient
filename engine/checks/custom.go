@@ -22,8 +22,8 @@ type Custom struct {
 	Regex   string
 }
 
-func (c Custom) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+func (c Custom) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 
 		var username, password string
 		var err error
@@ -51,7 +51,7 @@ func (c Custom) Run(teamID uint, teamIdentifier string, roundID uint, resultsCha
 
 		// Create command with timeout context
 		timeout := time.Duration(c.Timeout) * time.Second
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "/bin/sh", "-c", formedCommand) // #nosec G204 -- custom checks intentionally run user-defined commands
 
@@ -144,7 +144,7 @@ func (c Custom) Run(teamID uint, teamIdentifier string, roundID uint, resultsCha
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Custom) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

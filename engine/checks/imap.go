@@ -1,10 +1,10 @@
 package checks
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log/slog"
-	"net"
 	"time"
 
 	"github.com/emersion/go-imap"
@@ -17,22 +17,19 @@ type Imap struct {
 	Encrypted bool
 }
 
-func (c Imap) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
-		// Create a dialer so we can set timeouts
-		dialer := net.Dialer{
-			Timeout: time.Duration(c.Timeout) * time.Second,
-		}
-
-		// Defining these allow the if/else block below
-		var cl *client.Client
-		var err error
-
+func (c Imap) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		// Connect to server with TLS or not
-		if c.Encrypted {
-			cl, err = client.DialWithDialerTLS(&dialer, fmt.Sprintf("%s:%d", c.Target, c.Port), &tls.Config{}) // #nosec G402 -- competition services may use self-signed certs
-		} else {
-			cl, err = client.DialWithDialer(&dialer, fmt.Sprintf("%s:%d", c.Target, c.Port))
+		var cl *client.Client
+		conn, err := dialContext(ctx, "tcp", fmt.Sprintf("%s:%d", c.Target, c.Port))
+		if err == nil && c.Encrypted {
+			tlsConn := tls.Client(conn, &tls.Config{ServerName: c.Target}) // #nosec G402 -- competition services may use self-signed certs
+			if err = tlsConn.HandshakeContext(ctx); err == nil {
+				conn = tlsConn
+			}
+		}
+		if err == nil {
+			cl, err = client.New(conn)
 		}
 		if err != nil {
 			checkResult.Error = "connection to server failed"
@@ -91,7 +88,7 @@ func (c Imap) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Imap) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

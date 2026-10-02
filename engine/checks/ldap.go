@@ -1,6 +1,8 @@
 package checks
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -15,8 +17,8 @@ type Ldap struct {
 	Encrypted bool
 }
 
-func (c Ldap) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+func (c Ldap) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		// Set timeout
 		ldap.DefaultTimeout = time.Duration(c.Timeout) * time.Second
 
@@ -32,7 +34,7 @@ func (c Ldap) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 		if c.Encrypted {
 			scheme = "ldaps"
 		}
-		lconn, err := ldap.DialURL(fmt.Sprintf("%s://%s:%d", scheme, c.Target, c.Port))
+		lconn, err := dialLdap(ctx, scheme, c.Target, c.Port)
 		if err != nil {
 			checkResult.Error = "failed to connect"
 			checkResult.Debug = "login " + username + " password " + password + " failed with error: " + err.Error()
@@ -70,7 +72,7 @@ func (c Ldap) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Ldap) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {
@@ -91,4 +93,23 @@ func (c *Ldap) Verify(box string, ip string, points int, timeout int, slapenalty
 	}
 
 	return nil
+}
+
+// dialLdap is ldap.DialURL for ldap:// and ldaps://, but cancellable via ctx.
+func dialLdap(ctx context.Context, scheme string, host string, port int) (*ldap.Conn, error) {
+	conn, err := dialContext(ctx, "tcp", fmt.Sprintf("%s:%d", host, port))
+	if err != nil {
+		return nil, err
+	}
+	if scheme == "ldaps" {
+		// Matches ldap.DialURL, which verifies the server cert against host
+		tlsConn := tls.Client(conn, &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12})
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			return nil, err
+		}
+		conn = tlsConn
+	}
+	lconn := ldap.NewConn(conn, scheme == "ldaps")
+	lconn.Start()
+	return lconn, nil
 }

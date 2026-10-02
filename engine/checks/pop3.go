@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"context"
 	"github.com/knadh/go-pop3"
 )
 
@@ -10,13 +11,14 @@ type Pop3 struct {
 	Encrypted bool
 }
 
-func (c Pop3) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+func (c Pop3) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		// Create a dialer so we can set timeouts
 		p := pop3.New(pop3.Opt{
 			Host:       c.Target,
 			Port:       c.Port,
 			TLSEnabled: c.Encrypted,
+			Dialer:     ctxDialer{ctx},
 		})
 
 		// Create a new connection. POP3 connections are stateful and should end
@@ -69,7 +71,7 @@ func (c Pop3) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Pop3) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {
