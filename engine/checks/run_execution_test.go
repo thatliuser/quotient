@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -139,7 +140,7 @@ func TestWebRun_ActualExecution(t *testing.T) {
 
 			// Run the ACTUAL check
 			resultsChan := make(chan Result, 1)
-			tt.webCheck.Run(1, "01", 1, resultsChan)
+			tt.webCheck.Run(context.Background(), 1, "01", 1, resultsChan)
 
 			// Wait for result with timeout
 			select {
@@ -211,7 +212,7 @@ func TestTcpRun_ActualExecution(t *testing.T) {
 
 			// Run the ACTUAL check
 			resultsChan := make(chan Result, 1)
-			tcpCheck.Run(1, "01", 1, resultsChan)
+			tcpCheck.Run(context.Background(), 1, "01", 1, resultsChan)
 
 			// Wait for result
 			select {
@@ -345,7 +346,7 @@ func TestDnsRun_ActualExecution(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Run the ACTUAL check
 			resultsChan := make(chan Result, 1)
-			tt.dnsCheck.Run(1, "01", 1, resultsChan)
+			tt.dnsCheck.Run(context.Background(), 1, "01", 1, resultsChan)
 
 			// Wait for result
 			select {
@@ -417,7 +418,7 @@ func TestCustomRun_ActualExecution(t *testing.T) {
 
 			// Run the ACTUAL check
 			resultsChan := make(chan Result, 1)
-			customCheck.Run(1, "01", 1, resultsChan)
+			customCheck.Run(context.Background(), 1, "01", 1, resultsChan)
 
 			// Wait for result
 			select {
@@ -448,7 +449,7 @@ func TestPingRun_ActualExecution(t *testing.T) {
 
 		// Run the ACTUAL check
 		resultsChan := make(chan Result, 1)
-		pingCheck.Run(1, "01", 1, resultsChan)
+		pingCheck.Run(context.Background(), 1, "01", 1, resultsChan)
 
 		// Wait for result
 		select {
@@ -486,7 +487,7 @@ func TestServiceTimeout(t *testing.T) {
 		}
 
 		resultsChan := make(chan Result, 1)
-		webCheck.Run(1, "01", 1, resultsChan)
+		webCheck.Run(context.Background(), 1, "01", 1, resultsChan)
 
 		// Should timeout and return result
 		select {
@@ -508,7 +509,7 @@ func TestServiceRun_TimeoutDoesNotLeakGoroutine(t *testing.T) {
 	results := make(chan Result, 1)
 	done := make(chan struct{})
 
-	svc.Run(1, "1", 1, results, func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+	svc.Run(context.Background(), 1, "1", 1, results, func(_ context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		time.Sleep(1500 * time.Millisecond)
 		response <- checkResult
 		close(done)

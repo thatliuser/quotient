@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -193,7 +194,7 @@ func TestWebCheckRun(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resultsChan := make(chan Result, 1)
-			tt.check.Run(1, "01", 1, resultsChan)
+			tt.check.Run(context.Background(), 1, "01", 1, resultsChan)
 
 			select {
 			case result := <-resultsChan:
@@ -367,7 +368,7 @@ func TestDnsCheckRun(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resultsChan := make(chan Result, 1)
-			tt.check.Run(1, "01", 1, resultsChan)
+			tt.check.Run(context.Background(), 1, "01", 1, resultsChan)
 
 			select {
 			case result := <-resultsChan:

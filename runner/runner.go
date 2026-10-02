@@ -178,8 +178,6 @@ func handleTask(ctx context.Context, rdb *redis.Client, runner checks.Runner, ta
 	statusJSON, _ := json.Marshal(result)
 	rdb.Set(ctx, taskKey, statusJSON, time.Until(task.Deadline))
 
-	resultsChan := make(chan checks.Result, 1)
-
 	// Set credentials from task payload for the checks to use (per-instance, thread-safe)
 	if len(task.Credentials) > 0 {
 		creds := make([]checks.TaskCredential, len(task.Credentials))
@@ -197,12 +195,13 @@ func handleTask(ctx context.Context, rdb *redis.Client, runner checks.Runner, ta
 		slog.Info("running check", "round_id", task.RoundID, "team_id", task.TeamID,
 			"service_type", task.ServiceType, "service_name", task.ServiceName, "attempt", i+1)
 
-		// Create context with deadline
+		// Create context with deadline; the check aborts its in-flight work when it's done
 		checkCtx, cancel := context.WithDeadline(ctx, task.Deadline)
-		defer cancel()
 
-		// Run the check in a goroutine
-		go runner.Run(task.TeamID, task.TeamIdentifier, task.RoundID, resultsChan)
+		// Run the check in a goroutine. Fresh channel per attempt so a late
+		// result from an earlier attempt can't be mistaken for this one's.
+		resultsChan := make(chan checks.Result, 1)
+		go runner.Run(checkCtx, task.TeamID, task.TeamIdentifier, task.RoundID, resultsChan)
 
 		// Wait for either result or deadline
 		select {
@@ -227,6 +226,8 @@ func handleTask(ctx context.Context, rdb *redis.Client, runner checks.Runner, ta
 			slog.Warn("check timed out", "round_id", task.RoundID, "team_id", task.TeamID,
 				"service_type", task.ServiceType)
 		}
+
+		cancel()
 
 		// Break if successful or deadline passed
 		if result.Status || time.Now().After(task.Deadline) {

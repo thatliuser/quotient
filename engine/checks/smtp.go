@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"net"
 	"net/smtp"
-	"time"
 )
 
 // generateRandomContent creates random email content for variety.
@@ -38,13 +37,8 @@ func (a unencryptedAuth) Start(server *smtp.ServerInfo) (string, []byte, error) 
 	return a.Auth.Start(&s)
 }
 
-func (c Smtp) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
-		// Create a dialer
-		dialer := net.Dialer{
-			Timeout: time.Duration(c.Timeout) * time.Second,
-		}
-
+func (c Smtp) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		subject, body := generateRandomContent()
 
 		// ***********************************************
@@ -83,10 +77,12 @@ func (c Smtp) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 		// Declare these for the below if block
 		var conn net.Conn
 
-		if c.Encrypted {
-			conn, err = tls.DialWithDialer(&dialer, "tcp", fmt.Sprintf("%s:%d", c.Target, c.Port), &tlsConfig)
-		} else {
-			conn, err = dialer.DialContext(context.TODO(), "tcp", fmt.Sprintf("%s:%d", c.Target, c.Port))
+		conn, err = dialContext(ctx, "tcp", fmt.Sprintf("%s:%d", c.Target, c.Port))
+		if err == nil && c.Encrypted {
+			tlsConn := tls.Client(conn, &tlsConfig)
+			if err = tlsConn.HandshakeContext(ctx); err == nil {
+				conn = tlsConn
+			}
 		}
 		if err != nil {
 			checkResult.Error = "connection to server failed"
@@ -174,7 +170,7 @@ func (c Smtp) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Smtp) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

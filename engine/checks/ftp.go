@@ -1,13 +1,13 @@
 package checks
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jlaffaye/ftp"
 )
@@ -23,9 +23,9 @@ type FtpFile struct {
 	Regex string
 }
 
-func (c Ftp) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
-		conn, err := ftp.Dial(c.Target+":"+strconv.Itoa(c.Port), ftp.DialWithTimeout(time.Duration(c.Timeout)*time.Second))
+func (c Ftp) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+		conn, err := ftp.Dial(c.Target+":"+strconv.Itoa(c.Port), ftp.DialWithDialFunc(ctxDialer{ctx}.Dial))
 		if err != nil {
 			checkResult.Error = "ftp connection failed"
 			checkResult.Debug = err.Error()
@@ -57,7 +57,7 @@ func (c Ftp) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		}
 
 		if len(c.File) > 0 {
-			checkResult = RunSubchecks(c.File, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(file FtpFile, res Result) Result {
+			checkResult = RunSubchecks(ctx, c.File, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(file FtpFile, res Result) Result {
 				r, err := conn.Retr(file.Name)
 				if err != nil {
 					res.Error = "failed to retrieve file " + file.Name
@@ -117,7 +117,7 @@ func (c Ftp) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Ftp) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

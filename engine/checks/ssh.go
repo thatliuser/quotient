@@ -2,6 +2,7 @@ package checks
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -62,8 +63,8 @@ type commandData struct {
 	Output   string `toml:",omitempty"`
 }
 
-func (c Ssh) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+func (c Ssh) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 
 		// Create client config
 		username, password, err := c.getCreds(teamID)
@@ -76,8 +77,7 @@ func (c Ssh) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 
 		config := &ssh.ClientConfig{
 			User:            username,
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(), // #nosec G106 -- competition hosts have unknown keys
-			Timeout:         time.Duration(c.Timeout) * time.Second,
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),                                      // #nosec G106 -- competition hosts have unknown keys
 			ClientVersion:   commonSSHClientVersions[rand.Intn(len(commonSSHClientVersions))], // #nosec G404 -- non-crypto random client version
 		}
 		config.SetDefaults()
@@ -112,12 +112,11 @@ func (c Ssh) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 				Auth: []ssh.AuthMethod{
 					ssh.Password(uuid.New().String()),
 				},
-				HostKeyCallback: ssh.InsecureIgnoreHostKey(), // #nosec G106 -- competition hosts have unknown keys
-				Timeout:         time.Duration(c.Timeout) * time.Second,
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),                                      // #nosec G106 -- competition hosts have unknown keys
 				ClientVersion:   commonSSHClientVersions[rand.Intn(len(commonSSHClientVersions))], // #nosec G404 -- non-crypto random client version
 			}
 
-			badConn, err := ssh.Dial("tcp", c.Target+":"+strconv.Itoa(c.Port), badConf)
+			badConn, err := sshDial(ctx, c.Target+":"+strconv.Itoa(c.Port), badConf)
 			if err == nil {
 				if err := badConn.Close(); err != nil {
 					slog.Error("failed to close bad ssh connection", "error", err)
@@ -126,7 +125,7 @@ func (c Ssh) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		}
 
 		// Connect to ssh server
-		conn, err := ssh.Dial("tcp", c.Target+":"+strconv.Itoa(c.Port), config)
+		conn, err := sshDial(ctx, c.Target+":"+strconv.Itoa(c.Port), config)
 		if err != nil {
 			if c.PrivKey != "" {
 				checkResult.Error = "error logging in to ssh server with private key " + c.PrivKey
@@ -160,7 +159,7 @@ func (c Ssh) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			checkResult.Debug = "creds used were " + username + ":" + password
 		} else {
 			// Run a random command (or all if CheckAll)
-			checkResult = RunSubchecks(c.Command, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(r commandData, res Result) Result {
+			checkResult = RunSubchecks(ctx, c.Command, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(r commandData, res Result) Result {
 				shell, errMsg, err := openShell(conn)
 				if err != nil {
 					res.Error = errMsg
@@ -172,7 +171,15 @@ func (c Ssh) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 				defer shell.session.Close()
 
 				_, _ = fmt.Fprintln(shell.stdin, r.Command)
-				time.Sleep(time.Duration(int(time.Duration(c.Timeout)*time.Second) / 8)) // command wait time
+				// command wait time
+				select {
+				case <-time.After(time.Duration(int(time.Duration(c.Timeout)*time.Second) / 8)):
+				case <-ctx.Done():
+					res.Error = "check timeout exceeded"
+					res.Debug = "ran out of time waiting for output of '" + r.Command + "'"
+					res.Status = false
+					return res
+				}
 				if r.Contains {
 					if !strings.Contains(shell.stdout.String(), r.Output) {
 						res.Error = "command output didn't contain string"
@@ -209,7 +216,22 @@ func (c Ssh) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
+}
+
+// sshDial is ssh.Dial, but the whole connection (handshake, sessions, I/O)
+// is torn down once ctx is done. ssh.Dial's own Timeout only covers TCP connect.
+func sshDial(ctx context.Context, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	conn, err := dialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	c, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	return ssh.NewClient(c, chans, reqs), nil
 }
 
 type sshShell struct {

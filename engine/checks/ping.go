@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -14,8 +15,8 @@ type Ping struct {
 	Percent         int
 }
 
-func (c Ping) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+func (c Ping) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		// Create pinger
 		pinger, err := ping.NewPinger(c.Target)
 		if err != nil {
@@ -29,6 +30,8 @@ func (c Ping) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 		pinger.Count = c.Count
 		pinger.Timeout = 5 * time.Second
 		pinger.SetPrivileged(true)
+		stop := context.AfterFunc(ctx, pinger.Stop)
+		defer stop()
 		err = pinger.Run()
 		if err != nil {
 			checkResult.Error = "ping failed"
@@ -59,7 +62,7 @@ func (c Ping) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan 
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Ping) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

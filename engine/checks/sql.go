@@ -24,8 +24,8 @@ type queryData struct {
 	Output   string `toml:",omitempty"`
 }
 
-func (c Sql) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
-	definition := func(teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+func (c Sql) Run(ctx context.Context, teamID uint, teamIdentifier string, roundID uint, resultsChan chan Result) {
+	definition := func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		username, password, err := c.getCreds(teamID)
 		if err != nil {
 			checkResult.Error = "error getting creds"
@@ -52,7 +52,7 @@ func (c Sql) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			}()
 
 			// Check DB connection
-			err = db.PingContext(context.TODO())
+			err = db.PingContext(ctx)
 			if err != nil {
 				checkResult.Error = "db connection or login failed"
 				checkResult.Debug = err.Error()
@@ -67,7 +67,7 @@ func (c Sql) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			return
 		}
 
-		checkResult = RunSubchecks(c.Query, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(q queryData, res Result) Result {
+		checkResult = RunSubchecks(ctx, c.Query, c.CheckAll, checkResult, "creds used were "+username+":"+password, func(q queryData, res Result) Result {
 			// Open the DB handle
 			db, err := sql.Open(c.Kind, fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", username, password, c.Target, c.Port, q.Database))
 			if err != nil {
@@ -83,7 +83,7 @@ func (c Sql) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			}()
 
 			// Check DB connection
-			err = db.PingContext(context.TODO())
+			err = db.PingContext(ctx)
 			if err != nil {
 				res.Error = "db connection or login failed"
 				res.Debug = err.Error()
@@ -98,7 +98,7 @@ func (c Sql) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 			}
 
 			// Query the DB
-			rows, err := db.QueryContext(context.TODO(), q.Command)
+			rows, err := db.QueryContext(ctx, q.Command)
 			if err != nil {
 				res.Error = "could not query db with command " + q.Command
 				res.Debug = err.Error()
@@ -181,7 +181,7 @@ func (c Sql) Run(teamID uint, teamIdentifier string, roundID uint, resultsChan c
 		response <- checkResult
 	}
 
-	c.Service.Run(teamID, teamIdentifier, roundID, resultsChan, definition)
+	c.Service.Run(ctx, teamID, teamIdentifier, roundID, resultsChan, definition)
 }
 
 func (c *Sql) Verify(box string, ip string, points int, timeout int, slapenalty int, slathreshold int) error {

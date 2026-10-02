@@ -236,7 +236,7 @@ type mockRunner struct {
 	checks.Service
 }
 
-func (m *mockRunner) Run(teamID uint, identifier string, roundID uint, resultsChan chan checks.Result) {
+func (m *mockRunner) Run(_ context.Context, teamID uint, identifier string, roundID uint, resultsChan chan checks.Result) {
 	resultsChan <- checks.Result{
 		TeamID:      teamID,
 		ServiceName: m.Name,
