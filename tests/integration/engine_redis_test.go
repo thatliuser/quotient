@@ -32,7 +32,7 @@ func TestEngineRedisTaskEnqueue(t *testing.T) {
 
 	redisContainer, _ := testutil.StartContainers(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("enqueue single task", func(t *testing.T) {
 		// Clear Redis
@@ -153,7 +153,7 @@ func TestEngineRedisResultCollection(t *testing.T) {
 
 	redisContainer, _ := testutil.StartContainers(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("collect single result", func(t *testing.T) {
 		// Clear Redis
@@ -289,7 +289,7 @@ func TestEngineRedisPubSub(t *testing.T) {
 
 	redisContainer, _ := testutil.StartContainers(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("publish and receive events", func(t *testing.T) {
 		// Subscribe to events channel
@@ -384,7 +384,7 @@ func TestEngineRedisRoundWorkflow(t *testing.T) {
 
 	redisContainer, _ := testutil.StartContainers(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("complete round workflow", func(t *testing.T) {
 		// Clear Redis at start of each subtest
@@ -476,7 +476,7 @@ func TestRedisConnectionFailure(t *testing.T) {
 			Addr: "localhost:9999", // Non-existent port
 		})
 
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 1*time.Second)
 		defer cancel()
 
 		// Ping should fail

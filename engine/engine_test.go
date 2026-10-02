@@ -23,7 +23,7 @@ func TestProcessCollectedResults_SavesRound(t *testing.T) {
 	redis, pg := testutil.StartContainers(t)
 
 	// Clean slate
-	redis.Client.FlushDB(context.Background())
+	redis.Client.FlushDB(t.Context())
 	require.NoError(t, pg.DB.ResetScores())
 
 	team := pg.CreateTestTeam(t, "Team", "01")
@@ -71,7 +71,7 @@ func TestProcessCollectedResults_TracksUptime(t *testing.T) {
 
 	redis, pg := testutil.StartContainers(t)
 
-	redis.Client.FlushDB(context.Background())
+	redis.Client.FlushDB(t.Context())
 	require.NoError(t, pg.DB.ResetScores())
 
 	team := pg.CreateTestTeam(t, "Team", "01")
@@ -110,7 +110,7 @@ func TestProcessCollectedResults_TriggersSLA(t *testing.T) {
 
 	redis, pg := testutil.StartContainers(t)
 
-	redis.Client.FlushDB(context.Background())
+	redis.Client.FlushDB(t.Context())
 	require.NoError(t, pg.DB.ResetScores())
 
 	team := pg.CreateTestTeam(t, "Team SLA", "01")
@@ -144,7 +144,7 @@ func TestProcessCollectedResults_SLAResetsOnPass(t *testing.T) {
 
 	redis, pg := testutil.StartContainers(t)
 
-	redis.Client.FlushDB(context.Background())
+	redis.Client.FlushDB(t.Context())
 	require.NoError(t, pg.DB.ResetScores())
 
 	team := pg.CreateTestTeam(t, "Team SLA Reset", "01")
@@ -198,7 +198,7 @@ func TestProcessCollectedResults_MultipleTeamsIndependent(t *testing.T) {
 
 	redis, pg := testutil.StartContainers(t)
 
-	redis.Client.FlushDB(context.Background())
+	redis.Client.FlushDB(t.Context())
 	require.NoError(t, pg.DB.ResetScores())
 
 	team1 := pg.CreateTestTeam(t, "Team Multi 1", "01")
@@ -271,7 +271,7 @@ func TestRvb_EnqueuesTasksAndCollectsResults(t *testing.T) {
 
 	redis, pg := testutil.StartContainers(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	redis.Client.FlushDB(ctx)
 	require.NoError(t, pg.DB.ResetScores())
 
@@ -377,7 +377,7 @@ func TestRvb_HandlesMultipleServices(t *testing.T) {
 
 	redis, pg := testutil.StartContainers(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	redis.Client.FlushDB(ctx)
 	require.NoError(t, pg.DB.ResetScores())
 
