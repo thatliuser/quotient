@@ -69,7 +69,7 @@ func TestChecks_CancelTearsDownHungConnection(t *testing.T) {
 			results := make(chan Result, 1)
 
 			start := time.Now()
-			tt.check(port).Run(context.Background(), 1, "01", 1, results)
+			tt.check(port).Run(t.Context(), 1, "01", 1, results)
 			res := <-results
 			assert.False(t, res.Status)
 			assert.Less(t, time.Since(start), 3*time.Second, "check overran its timeout")
@@ -89,7 +89,7 @@ func TestServiceRun_ParentCancelStopsCheck(t *testing.T) {
 	port, closed := tarpit(t)
 	ssh := &Ssh{Service: Service{Name: "ssh", Target: "127.0.0.1", Port: port, Timeout: 30, TaskCredentials: []TaskCredential{{Username: "u", Password: "p"}}}}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
 	defer cancel()
 
 	results := make(chan Result, 1)
@@ -108,7 +108,7 @@ func TestServiceRun_ParentCancelStopsCheck(t *testing.T) {
 }
 
 func TestRunSubchecks_StopsWhenContextDone(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	items := []commandData{{Command: "1"}, {Command: "2"}, {Command: "3"}}
 
 	ran := 0
@@ -131,7 +131,7 @@ func TestServiceRun_ContextCancelledOnTimeout(t *testing.T) {
 	sawCancel := make(chan struct{})
 
 	start := time.Now()
-	svc.Run(context.Background(), 1, "1", 1, results, func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+	svc.Run(t.Context(), 1, "1", 1, results, func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 		<-ctx.Done()
 		close(sawCancel)
 		response <- checkResult
@@ -153,7 +153,7 @@ func TestServiceRun_ResultWinsOverLateCancel(t *testing.T) {
 	for i := range 200 {
 		svc := &Service{Name: "fast", Timeout: 5}
 		results := make(chan Result, 1)
-		svc.Run(context.Background(), 1, "1", 1, results, func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
+		svc.Run(t.Context(), 1, "1", 1, results, func(ctx context.Context, teamID uint, teamIdentifier string, checkResult Result, response chan Result) {
 			checkResult.Status = true
 			response <- checkResult
 		})
